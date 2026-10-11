@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>64 Würfel mit Farbwechsel und Rotationsänderung</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden;
+            background-color: #000;
+        }
+        canvas { 
+            display: block; 
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Szene erstellen
+        const scene = new THREE.Scene();
+        
+        // Kamera erstellen
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 25;
+        
+        // Renderer erstellen
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        
+        // Würfel-Geometrie
+        const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+        
+        // Materialien für blaue und rote Würfel
+        const blueMaterial = new THREE.LineBasicMaterial({ 
+            color: 0x0000ff,
+            linewidth: 1
+        });
+        
+        const redMaterial = new THREE.LineBasicMaterial({ 
+            color: 0xff0000,
+            linewidth: 1
+        });
+        
+        // Material für weiße Würfel
+        const whiteMaterial = new THREE.LineBasicMaterial({ 
+            color: 0xffffff,
+            linewidth: 1
+        });
+        
+        // Gruppe für alle Würfel
+        const cubeGroup = new THREE.Group();
+        scene.add(cubeGroup);
+        
+        // 4x4x4 Gitter mit 64 Würfeln
+        const gridSize = 4;
+        const spacing = 2.5;
+        const offsetX = -(gridSize - 1) * spacing / 2;
+        const offsetY = -(gridSize - 1) * spacing / 2;
+        const offsetZ = -(gridSize - 1) * spacing / 2;
+        
+        // Array für individuelle Würfelrotationen
+        const cubes = [];
+        let whiteCount = 0; // Zähler für weiße Würfel
+        let rotationDirection = 1; // 1 für positive, -1 für negative Rotation
+        let rotationSpeed = 0.01; // Ursprüngliche Rotationsgeschwindigkeit
+        
+        // Erstelle 64 Würfel in einem 4x4x4 Gitter
+        for (let x = 0; x < gridSize; x++) {
+            for (let y = 0; y < gridSize; y++) {
+                for (let z = 0; z < gridSize; z++) {
+                    // EdgesGeometry für Drahtgitter
+                    const edges = new THREE.EdgesGeometry(geometry);
+                    
+                    // Blaue Würfel: erste Hälfte (erste 32 Würfel)
+                    // Rote Würfel: zweite Hälfte (letzte 32 Würfel)
+                    let material;
+                    const index = x * gridSize * gridSize + y * gridSize + z;
+                    
+                    if (index < 32) {
+                        material = blueMaterial; // Erste Hälfte blau
+                    } else {
+                        material = redMaterial;  // Zweite Hälfte rot
+                    }
+                    
+                    const cube = new THREE.LineSegments(edges, material);
+                    
+                    // Positioniere den Würfel im Gitter
+                    cube.position.x = x * spacing + offsetX;
+                    cube.position.y = y * spacing + offsetY;
+                    cube.position.z = z * spacing + offsetZ;
+                    
+                    // Füge Würfel zur Gruppe hinzu
+                    cubeGroup.add(cube);
+                    
+                    // Speichere Würfel für individuelle Drehung und Farbwechsel
+                    cubes.push({
+                        mesh: cube,
+                        rotationX: 0,
+                        rotationY: 0,
+                        rotationZ: 0,
+                        baseScale: 1, // Ursprüngliche Skalierung
+                        scaleOffset: Math.random() * Math.PI, // Zufälliger Offset für Timing
+                        isWhite: false, // Status ob weiß
+                        originalMaterial: material // Originalmaterial für Rückkehr
+                    });
+                }
+            }
+        }
+        
+        let rotationAngle = 0; // Verfolgt die Gesamtdrehung
+        const fullRotationThreshold = Math.PI * 2; // Vollständige Umdrehung (2π)
+        
+        // Animationsschleife
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Zeitvariable für die 8-Schleife (Lissajous-Kurve)
+            const time = Date.now() * 0.001;
+            
+            // 8-Schleife (Lissajous-Kurve) - Bewegung der gesamten Gruppe
+            const amplitude = 8;
+            const x = Math.sin(time * 0.5) * amplitude;
+            const y = Math.cos(time * 0.3) * amplitude;
+            const z = Math.sin(time * 0.7) * amplitude * 0.5;
+            
+            // Bewege die gesamte Gruppe in einer 8-Schleife
+            cubeGroup.position.x = x;
+            cubeGroup.position.y = y;
+            cubeGroup.position.z = z;
+            
+            // Berechnung der Gesamtdrehung (verfolgt eine Rotation um Y-Achse)
+            rotationAngle += rotationSpeed * rotationDirection;
+            
+            // Gemeinsame Rotation um Y-Achse (als eine Einheit)
+            cubeGroup.rotation.y += rotationSpeed * rotationDirection;
+            
+            // Gummiband-Effekt: Würfel vergrößern und verkleinern
+            const pulseSpeed = 0.02; // Geschwindigkeit des Pulsierens
+            const pulseAmount = 0.3;  // Maximale Skalierungsdifferenz
+            
+            cubes.forEach((cube, index) => {
+                // Pulsierende Skalierung für jeden Würfel
+                const pulse = Math.sin(time * pulseSpeed + cube.scaleOffset) * pulseAmount;
+                const scale = 1 + pulse;
+                
+                // Anwenden der Skalierung auf den Würfel
+                cube.mesh.scale.set(scale, scale, scale);
+                
+                // Jeder Würfel einzeln um seine eigene Achse drehen
+                cube.mesh.rotation.x += 0.01;
+                cube.mesh.rotation.y += 0.01;
+                cube.mesh.rotation.z += 0.01;
+            });
+            
+            // Prüfen, ob eine vollständige Rotation abgeschlossen wurde
+            if (Math.abs(rotationAngle) >= fullRotationThreshold) {
+                // Vollständige Rotation abgeschlossen - zufälligen Würfel weiß färben
+                const availableCubes = cubes.filter(cube => !cube.isWhite);
+                
+                if (availableCubes.length > 0 && whiteCount < 64) {
+                    // Zufälligen nicht-weissen Würfel auswählen
+                    const randomIndex = Math.floor(Math.random() * availableCubes.length);
+                    const cubeToColor = availableCubes[randomIndex];
+                    
+                    // Würfel weiß färben
+                    cubeToColor.mesh.material = whiteMaterial;
+                    cubeToColor.isWhite = true;
+                    whiteCount++;
+                }
+                
+                // Reset der Drehwinkel
+                rotationAngle = 0;
+                
+                // Wenn alle Würfel weiß sind, ändere Rotationsrichtung und verdopple Geschwindigkeit
+                if (whiteCount >= 64) {
+                    rotationDirection *= -1; // Richtung umkehren
+                    rotationSpeed *= 2;      // Geschwindigkeit verdoppeln
+                    
+                    // Zurücksetzen für nächsten Zyklus
+                    whiteCount = 0;
+                    
+                    // Alle Würfel zurück auf Originalfarbe setzen
+                    cubes.forEach(cube => {
+                        cube.mesh.material = cube.originalMaterial;
+                        cube.isWhite = false;
+                    });
+                }
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Fenstergröße anpassen
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Animation starten
+        animate();
+    </script>
+</body>
+</html>
+

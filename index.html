@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gönn dir eine Pause!</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden; /* Entfernt Scrollbalken für gesamte Seite */
+        }
+        
+        .header {
+            background-color: #000;
+            color: yellow;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .button {
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        .button-stardust {
+            background-color: #ff0000; /* Rot */
+        }
+        
+        .button-stardust:hover {
+            background-color: #cc0000; /* Dunkleres Rot */
+        }
+        
+        .button-cube {
+            background-color: #0000ff; /* Blau */
+        }
+        
+        .button-cube:hover {
+            background-color: #0000cc; /* Dunkleres Blau */
+        }
+        
+        .frame-container {
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        iframe {
+            width: 100%;
+            height: calc(100vh - 60px);
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="button button-stardust" onclick="loadPage('stardust.html')">Stardust</button>
+        <h2>Pausenzeit jetzt!</h2>
+        <button class="button button-cube" onclick="loadPage('cube.html')">Cube</button>
+    </div>
+    
+    <div class="frame-container">
+        <iframe id="contentFrame" src="stardust.html"></iframe>
+    </div>
+
+    <script>
+        function loadPage(pageUrl) {
+            document.getElementById('contentFrame').src = pageUrl;
+        }
+    </script>
+</body>
+</html>
+

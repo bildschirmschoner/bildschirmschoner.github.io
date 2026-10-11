@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saar Wars Stardust Screensaver</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+            cursor: none;
+            font-family: "Franklin Gothic Medium", "Arial Black", sans-serif;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        /* 3D-Perspektive für den Lauftext */
+        #intro-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            perspective: 300px;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+        }
+        #crawl-text {
+            position: relative;
+            width: 60%;
+            max-width: 800px;
+            color: #FFE81F; /* Klassisches Star Wars Gelb */
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-align: justify;
+            line-height: 1.6;
+            transform: rotateX(25deg) translateY(100%);
+            transform-origin: 50% 100%;
+        }
+        #crawl-text h2 {
+            text-align: center;
+            margin-bottom: 1rem;
+            font-size: 3.5rem;
+            letter-spacing: 2px;
+        }
+        #crawl-text h3 {
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="stardustCanvas"></canvas>
+
+    <div id="intro-container">
+        <div id="crawl-text" style="display: none;">
+            <h2>EPISODE 3.11</h2>
+            <h3>DAS BACKUP DER MACHT</h3>
+            <p>Es herrscht Unruhe im Betriebssystem. Die Rebellen-Allianz der Frontend-Entwickler hat einen geheimen Code in den alten Archiven von Windows 3.11 entdeckt.</p>
+            <br>
+            <p>Während die imperialen Server unter der Last moderner Frameworks ächzen, fliegt ein einsamer Bildschirmschoner mit Lichtgeschwindigkeit durch das unendliche Pixel-All, um die verloren geglaubte Performance der Galaxis zu retten...</p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('stardustCanvas');
+        const ctx = canvas.getContext('2d');
+        const crawlText = document.getElementById('crawl-text');
+
+        const MAX_STARS = 200;
+        let INITIAL_SPEED = 0.5; // Startet langsamer für den Intro-Effekt
+        let maxSpeedMultiplier = 1.02;
+        const TAIL_OPACITY = 0.15;
+        
+        // Star Wars Farbschema: Hauptsächlich weiße und hellblaue Sterne, vereinzelte Laser-Farben
+        const STAR_COLORS = ['#FFFFFF', '#FFFFFF', '#E0F7FA', '#B3E5FC', '#FF3333', '#33FF33'];
+
+        let stars = [];
+        let centerX, centerY;
+        let textY = 100; // Startposition des Textes in Prozent (unten)
+        let isHyperdrive = false;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            centerX = canvas.width / 2;
+            centerY = canvas.height / 2;
+        }
+
+        class Star {
+            constructor(initFarbe = false) {
+                this.reset();
+                if (initFarbe) {
+                    this.x = (Math.random() - 0.5) * canvas.width;
+                    this.y = (Math.random() - 0.5) * canvas.height;
+                }
+            }
+
+            reset() {
+                this.x = (Math.random() - 0.5) * 10;
+                this.y = (Math.random() - 0.5) * 10;
+                this.color = STAR_COLORS[Math.floor(Math.random() * STAR_COLORS.length)];
+                
+                const angle = Math.random() * Math.PI * 2;
+                const speed = INITIAL_SPEED + Math.random() * 1.5;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                // Im Hyperraum beschleunigen die Sterne extrem schnell nach außen
+                this.vx *= maxSpeedMultiplier; 
+                this.vy *= maxSpeedMultiplier;
+
+                const screenX = this.x + centerX;
+                const screenY = this.y + centerY;
+
+                if (screenX < 0 || screenX > canvas.width || screenY < 0 || screenY > canvas.height) {
+                    this.reset();
+                }
+            }
+
+            draw() {
+                const screenX = this.x + centerX;
+                const screenY = this.y + centerY;
+                const distanceFromCenter = Math.sqrt(this.x * this.x + this.y * this.y);
+                
+                // Sterne werden größer und länger, je weiter sie außen sind (Lichtgeschwindigkeits-Effekt)
+                let size = Math.max(1, Math.min(3, Math.floor(distanceFromCenter / 200) + 1));
+                
+                ctx.fillStyle = this.color;
+                
+                if (isHyperdrive) {
+                    // Zeichne Linien statt Punkte im Hyperraum
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = size;
+                    ctx.beginPath();
+                    ctx.moveTo(screenX, screenY);
+                    ctx.lineTo(screenX + this.vx * 2, screenY + this.vy * 2);
+                    ctx.stroke();
+                } else {
+                    ctx.fillRect(screenX, screenY, size, size);
+                }
+            }
+        }
+
+        function init() {
+            resizeCanvas();
+            stars = [];
+            for (let i = 0; i < MAX_STARS; i++) {
+                stars.push(new Star(true));
+            }
+            
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Star Wars Text einblenden
+            crawlText.style.display = 'block';
+        }
+
+        function animate() {
+            ctx.fillStyle = `rgba(0, 0, 0, ${TAIL_OPACITY})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Text-Animation steuern
+            if (!isHyperdrive) {
+                textY -= 0.08; // Geschwindigkeit des Text-Crawls
+                crawlText.style.transform = `rotateX(25deg) translateY(${textY}%)`;
+
+                // Wenn der Text weit genug oben ist, wird der Hyperraum-Sprung eingeleitet
+                if (textY < -120) {
+                    triggerHyperdrive();
+                }
+            } else {
+                // Text langsam ausfaden lassen, wenn Hyperdrive aktiv ist
+                crawlText.style.opacity = Math.max(0, parseFloat(crawlText.style.opacity || 1) - 0.02);
+            }
+
+            for (let i = 0; i < stars.length; i++) {
+                stars[i].update();
+                stars[i].draw();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        function triggerHyperdrive() {
+            isHyperdrive = true;
+            INITIAL_SPEED = 4;
+            maxSpeedMultiplier = 1.12; // Massive Beschleunigung nach außen
+        }
+
+        // Interaktions-Logik: Setzt den Zustand zurück und startet den Text von vorn
+        function resetOnInteraction() {
+            // Flash-Effekt
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Zustand zurücksetzen
+            isHyperdrive = false;
+            INITIAL_SPEED = 0.5;
+            maxSpeedMultiplier = 1.02;
+            textY = 100;
+            crawlText.style.opacity = 1;
+            crawlText.style.transform = `rotateX(25deg) translateY(${textY}%)`;
+
+            for (let i = 0; i < stars.length; i++) {
+                stars[i].reset();
+            }
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('keydown', resetOnInteraction);
+        window.addEventListener('mousemove', (e) => {
+            if (Math.abs(e.movementX) > 2 || Math.abs(e.movementY) > 2) {
+                resetOnInteraction();
+            }
+        });
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
