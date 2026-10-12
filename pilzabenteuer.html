@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pilz-Abenteuer - Mobile Edition</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: sans-serif;
+            touch-action: none; /* Verhindert Zoomen und Scrollen beim Spielen */
+        }
+        canvas {
+            border: 4px solid #444;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            background-color: #7cfc00;
+            max-width: 95vw;
+            max-height: 80vh;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            pointer-events: none;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        /* --- Mobile Steuerung --- */
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            display: grid;
+            grid-template-columns: repeat(3, 60px);
+            grid-template-rows: repeat(2, 60px);
+            gap: 10px;
+            user-select: none;
+        }
+        .btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.3);
+            border: 2px solid white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+            touch-action: none;
+        }
+        .btn:active {
+            background: rgba(255, 255, 255, 0.6);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <h1 style="margin:0; font-size: 1.2rem;">Pilz-Abenteuer</h1>
+        <p style="font-size: 0.8rem;">Steuer die Tasten unten!</p>
+    </div>
+
+    <!-- Buttons für das iPhone -->
+    <div class="controls">
+        <div></div>
+        <div class="btn" id="btnUp">↑</div>
+        <div></div>
+        <div class="btn" id="btnLeft">←</div>
+        <div class="btn" id="btnDown">↓</div>
+        <div class="btn" id="btnRight">→</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.0/pixi.min.js"></script>
+
+    <script>
+        // --- Globale Instanzen ---
+        const app = new PIXI.Application({
+            width: 800,
+            height: 600,
+            backgroundColor: 0x7cfc00,
+            resolution: window.devicePixelRatio,
+            autoDensity: true
+        });
+        document.body.appendChild(app.view);
+
+        let player;
+        let puddles = [];
+        let goal;
+        let keys = {};
+        let isGameOver = false;
+        let lastPuddleTouch = 0;
+
+        const PLAYER_SPEED = 250; 
+        const FRICTION = 0.9;      
+        const GROWTH_COOLDOWN = 500;
+
+        function setupScene() {
+            app.stage.removeChildren();
+            keys = {}; 
+            puddles = [];
+
+            player = new PIXI.Graphics();
+            player.beginFill(0x8B4513); 
+            player.drawRect(-5, 5, 10, 15);
+            player.beginFill(0xff0000);
+            player.drawEllipse(0, 0, 15, 12);
+            player.endFill();
+            
+            player.x = 50;
+            player.y = 300;
+            player.velocity = { x: 0, y: 0 };
+            player.hitWidth = 20; 
+            player.hitHeight = 20;
+            player.scale.set(1);
+            app.stage.addChild(player);
+
+            goal = new PIXI.Graphics();
+            goal.beginFill(0x804000);
+            goal.drawRect(0, 0, 60, 120);
+            goal.x = 720;
+            goal.y = 240;
+            goal.hitWidth = 60;
+            goal.hitHeight = 120;
+            app.stage.addChild(goal);
+
+            for (let i = 0; i < 12; i++) {
+                let p = new PIXI.Graphics();
+                p.beginFill(0x0000FF, 0.7);
+                let w = 40 + Math.random() * 60;
+                let h = 40 + Math.random() * 60;
+                p.drawRect(0, 0, w, h);
+                p.endFill();
+                p.x = 150 + Math.random() * 550;
+                p.y = Math.random() * 500;
+                p.hitWidth = w;
+                p.hitHeight = h;
+                app.stage.addChild(p);
+                puddles.push(p);
+            }
+
+            app.ticker.add(gameLoop);
+        }
+
+        function gameLoop(delta) {
+            if (isGameOver || !player) return;
+            let dt = delta / 1000;
+
+            if (keys['ArrowUp'] || keys['KeyW']) player.velocity.y -= PLAYER_SPEED * dt;
+            if (keys['ArrowDown'] || keys['KeyS']) player.velocity.y += PLAYER_SPEED * dt;
+            if (keys['ArrowLeft'] || keys['KeyA']) player.velocity.x -= PLAYER_SPEED * dt;
+            if (keys['ArrowRight'] || keys['KeyD']) player.velocity.x += PLAYER_SPEED * dt;
+
+            player.velocity.x *= FRICTION;
+            player.velocity.y *= FRICTION;
+
+            player.x += player.velocity.x;
+            player.y += player.velocity.y;
+
+            if (player.x < 0) player.x = 0;
+            if (player.x > app.screen.width - 30) player.x = app.screen.width - 30;
+            if (player.y < 0) player.y = 0;
+            if (player.y > app.screen.height - 30) player.y = app.screen.height - 30;
+
+            for (let i = 0; i < puddles.length; i++) {
+                if (checkCollision(player, puddles[i])) {
+                    if (Date.now() - lastPuddleTouch > GROWTH_COOLDOWN) {
+                        player.scale.x *= 1.1;
+                        player.scale.y *= 1.1;
+                        lastPuddleTouch = Date.now();
+                    }
+                    player.velocity.x *= -0.6;
+                    player.velocity.y *= -0.6;
+                    player.x += (player.x - puddles[i].x) * 0.05;
+                    player.y += (player.y - puddles[i].y) * 0.05;
+                    break;
+                }
+            }
+
+            if (checkCollision(player, goal)) {
+                alert("Supermarkt erreicht!");
+                setupScene();
+            }
+        }
+
+        function checkCollision(rect1, rect2) {
+            return (
+                rect1.x < rect2.x + rect2.hitWidth &&
+                rect1.x + rect1.hitWidth > rect2.x &&
+                rect1.y < rect2.y + rect2.hitHeight &&
+                rect1.y + rect1.hitHeight > rect2.y
+            );
+        }
+
+        function gameOver(msg) {
+            isGameOver = true;
+            player.scale.set(1.2);
+            setTimeout(() => {
+                alert(msg);
+                setupScene();
+                isGameOver = false;
+            }, 100);
+        }
+
+        // --- Eingabemanagement (Tastatur + Touch) ---
+        window.addEventListener('keydown', (e) => keys[e.code] = true);
+        window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+        // Touch-Funktionen für die Buttons
+        const setupButtons = () => {
+            const btnUp = document.getElementById('btnUp');
+            const btnDown = document.getElementById('btnDown');
+            const btnLeft = document.getElementById('btnLeft');
+            const btnRight = document.getElementById('btnRight');
+
+            const handleTouch = (id, key, state) => {
+                keys[key] = state;
+            };
+
+            btnUp.addEventListener('touchstart', (e) => { e.preventDefault(); handleTouch('btnUp', 'ArrowUp', true); });
+            btnUp.addEventListener('touchend', (e) => { e.preventDefault(); handleTouch('btnUp', 'ArrowUp', false); });
+            
+            btnDown.addEventListener('touchstart', (e) => { e.preventDefault(); handleTouch('btnDown', 'ArrowDown', true); });
+            btnDown.addEventListener('touchend', (e) => { e.preventDefault(); handleTouch('btnDown', 'ArrowDown', false); });
+            
+            btnLeft.addEventListener('touchstart', (e) => { e.preventDefault(); handleTouch('btnLeft', 'ArrowLeft', true); });
+            btnLeft.addEventListener('touchend', (e) => { e.preventDefault(); handleTouch('btnLeft', 'ArrowLeft', false); });
+            
+            btnRight.addEventListener('touchstart', (e) => { e.preventDefault(); handleTouch('btnRight', 'ArrowRight', true); });
+            btnRight.addEventListener('touchend', (e) => { e.preventDefault(); handleTouch('btnRight', 'ArrowRight', false); });
+            
+            // Für PC-Nutzer: Auch Klicks auf die Buttons funktionieren
+            btnUp.addEventListener('mousedown', () => keys['ArrowUp'] = true);
+            btnUp.addEventListener('mouseup', () => keys['ArrowUp'] = false);
+            btnDown.addEventListener('mousedown', () => keys['ArrowDown'] = true);
+            btnDown.addEventListener('mouseup', () => keys['ArrowDown'] = false);
+            btnLeft.addEventListener('mousedown', () => keys['ArrowLeft'] = true);
+            btnLeft.addEventListener('mouseup', () => keys['ArrowLeft'] = false);
+            btnRight.addEventListener('mousedown', () => keys['ArrowRight'] = true);
+            btnRight.addEventListener('mouseup', () => keys['ArrowRight'] = false);
+        };
+
+        setupButtons();
+        setupScene();
+    </script>
+</body>
+</html>

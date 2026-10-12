@@ -19,6 +19,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 10px; /* Fügt etwas Abstand zwischen den Buttons hinzu */
         }
         
         .button {
@@ -49,6 +50,16 @@
         .button-cube:hover {
             background-color: #0000cc; /* Dunkleres Blau */
         }
+
+        /* Neuer Stil für den gelben Button */
+        .button-pilz {
+            background-color: #ffff00; /* Gelb */
+            color: black; /* Schwarze Schrift für bessere Lesbarkeit auf Gelb */
+        }
+        
+        .button-pilz:hover {
+            background-color: #e6e600; /* Etwas dunkleres Gelb beim Hovern */
+        }
         
         .frame-container {
             flex: 1;
@@ -65,7 +76,7 @@
 <body>
     <div class="header">
         <button class="button button-stardust" onclick="loadPage('stardust.html')">Stardust</button>
-        <h2>Pausenzeit jetzt!</h2>
+        <button class="button button-pilz" onclick="loadPage('pilzabenteuer.html')">Pilzabenteuer jetzt!</button>
         <button class="button button-cube" onclick="loadPage('cube.html')">Cube</button>
     </div>
     
@@ -80,4 +91,3 @@
     </script>
 </body>
 </html>
-
