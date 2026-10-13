@@ -88,7 +88,7 @@
         const app = new PIXI.Application({
             width: 800,
             height: 600,
-            backgroundColor: 0x7cfc00,
+            // backgroundColor: 0x7cfc00, // <-- Diese Zeile kannst du löschen oder auskommentieren
             resolution: window.devicePixelRatio,
             autoDensity: true
         });
@@ -105,52 +105,82 @@
         const FRICTION = 0.9;      
         const GROWTH_COOLDOWN = 500;
 
+        // --- NEU: Hintergrund-Variable ---
+        let background;
+
         function setupScene() {
             app.stage.removeChildren();
             keys = {}; 
             puddles = [];
 
-            player = new PIXI.Graphics();
-            player.beginFill(0x8B4513); 
-            player.drawRect(-5, 5, 10, 15);
-            player.beginFill(0xff0000);
-            player.drawEllipse(0, 0, 15, 12);
-            player.endFill();
-            
-            player.x = 50;
-            player.y = 300;
-            player.velocity = { x: 0, y: 0 };
-            player.hitWidth = 20; 
-            player.hitHeight = 20;
-            player.scale.set(1);
-            app.stage.addChild(player);
+            // 1. Hintergrund (Ganz unten)
+            background = PIXI.TilingSprite.from('Grafik/wiese.jpg', { 
+                width: app.screen.width, 
+                height: app.screen.height 
+            });
+            app.stage.addChild(background);
 
-            goal = new PIXI.Graphics();
-            goal.beginFill(0x804000);
-            goal.drawRect(0, 0, 60, 120);
-            goal.x = 720;
-            goal.y = 240;
-            goal.hitWidth = 60;
-            goal.hitHeight = 120;
-            app.stage.addChild(goal);
-
+            // 2. Die Pfützen (Mittelgrund)
             for (let i = 0; i < 12; i++) {
-                let p = new PIXI.Graphics();
-                p.beginFill(0x0000FF, 0.7);
-                let w = 40 + Math.random() * 60;
-                let h = 40 + Math.random() * 60;
-                p.drawRect(0, 0, w, h);
-                p.endFill();
+                let p = PIXI.Sprite.from('Grafik/pfuetze.jpg');
                 p.x = 150 + Math.random() * 550;
                 p.y = Math.random() * 500;
-                p.hitWidth = w;
-                p.hitHeight = h;
-                app.stage.addChild(p);
+                p.hitWidth = p.width;
+                p.hitHeight = p.height;
+                app.stage.addChild(p); // Pfützen liegen über der Wiese
                 puddles.push(p);
             }
 
+            // 3. Das Ziel / Supermarkt (Mittelgrund)
+            goal = PIXI.Sprite.from('Grafik/supermarkt.png');
+            goal.x = 720;
+            goal.y = 240;
+            goal.scale.set(0.8); 
+            goal.hitWidth = goal.width;
+            goal.hitHeight = goal.height;
+            app.stage.addChild(goal); // Ziel liegt über der Wiese (und teilweise über Pfützen)
+
+            // 4. DER PLAYER (Ganz oben)
+            // --- Spieler mit Grafik ---
+            // Ersetze 'Grafik/spieler.png' durch deinen echten Dateinamen
+            player = PIXI.Sprite.from('Grafik/spieler.png');
+
+            // Position festlegen
+            player.x = 50;
+            player.y = 300;
+
+            // SKALIERUNG:
+            // Passe die Größe deines Spielers hier an.
+            // Da die Grafik vielleicht viel größer/kleiner ist als die alten 20x20 Pixel:
+            player.scale.set(0.8); 
+
+            // WICHTIG: Die Hitbox muss exakt auf die aktuelle Größe des Sprites passen
+            // Da wir keine Rotation nutzen, ist das Rechteck perfekt mit dem Bild übereinstimmend.
+            player.hitWidth = player.width;
+            player.hitHeight = player.height;
+
+            // Physik-Eigenschaften (bleiben gleich wie vorher)
+            player.velocity = { x: 0, y: 0 };
+
+            // Ganz wichtig: Der Player muss ganz zum Schluss hinzugefügt werden, 
+            // damit er über den Pfützen und dem Supermarkt liegt!
+            app.stage.addChild(player);
+
             app.ticker.add(gameLoop);
         }
+
+        // --- NEU: Asynchrones Laden des Spiels ---
+        // Wir warten, bis das Bild geladen ist, bevor wir setupScene() aufrufen.
+        PIXI.Assets.load('wiese.jpg').then(() => {
+            setupScene();
+        }).catch(err => {
+            console.error("Bild konnte nicht geladen werden:", err);
+            // Fallback: Wenn Bild fehlt, trotzdem spielen
+            setupScene();
+        });
+
+        // ... (Rest des Codes: gameLoop, checkCollision, etc. bleibt identisch)
+
 
         function gameLoop(delta) {
             if (isGameOver || !player) return;
